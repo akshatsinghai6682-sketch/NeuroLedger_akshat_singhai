@@ -5,9 +5,15 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import PredictionForm from './PredictionForm';
 import TransactionStatus from './TransactionStatus';
 
+if (typeof window !== 'undefined') {
+  console.log('[PredictionDashboard] Module loading in browser');
+}
+
 export default function PredictionDashboard() {
   console.log('[PredictionDashboard] Component rendering');
   const { connected } = useWallet();
+  console.log('[PredictionDashboard] Wallet connected:', connected);
+  
   const [transactionStatus, setTransactionStatus] = useState<{
     status: 'loading' | 'success' | 'error';
     message: string;
@@ -15,6 +21,7 @@ export default function PredictionDashboard() {
   } | null>(null);
 
   if (!connected) {
+    console.log('[PredictionDashboard] Wallet not connected, showing prompt');
     return (
       <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-12 text-center">
         <p className="text-xl text-slate-400 mb-4">
@@ -26,6 +33,8 @@ export default function PredictionDashboard() {
       </div>
     );
   }
+
+  console.log('[PredictionDashboard] Wallet connected, rendering dashboard');
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

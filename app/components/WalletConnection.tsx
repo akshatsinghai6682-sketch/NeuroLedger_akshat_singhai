@@ -3,13 +3,24 @@
 import dynamic from 'next/dynamic';
 import { useWallet } from '@solana/wallet-adapter-react';
 
+if (typeof window !== 'undefined') {
+  console.log('[WalletConnection] Module loading in browser');
+}
+
 const WalletMultiButtonDynamic = dynamic(
-  async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton,
-  { ssr: false }
+  async () => {
+    console.log('[WalletConnection] Dynamically importing WalletMultiButton');
+    const module = await import('@solana/wallet-adapter-react-ui');
+    console.log('[WalletConnection] WalletMultiButton imported successfully');
+    return module.WalletMultiButton;
+  },
+  { ssr: false, loading: () => <div>Loading wallet...</div> }
 );
 
 export default function WalletConnection() {
+  console.log('[WalletConnection] Component rendering');
   const { connected, publicKey } = useWallet();
+  console.log('[WalletConnection] Wallet state:', { connected, publicKey: publicKey?.toString() });
 
   return (
     <div className="flex items-center gap-4">

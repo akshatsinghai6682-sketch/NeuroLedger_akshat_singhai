@@ -2,7 +2,11 @@ import Head from 'next/head';
 import WalletConnection from '../components/WalletConnection';
 import PredictionDashboard from '../components/PredictionDashboard';
 
+console.log('[index.tsx] Server component module loaded');
+
 export default function Home() {
+  console.log('[index.tsx] Home page component rendering');
+
   return (
     <>
       <Head>

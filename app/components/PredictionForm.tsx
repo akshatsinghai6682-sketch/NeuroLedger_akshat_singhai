@@ -152,6 +152,7 @@ export default function PredictionForm({ onStatusChange }: PredictionFormProps) 
         })
         .rpc();
 
+        
       onStatusChange({
         status: 'success',
         message: '🎉 Prediction verified and reward claimed!',
