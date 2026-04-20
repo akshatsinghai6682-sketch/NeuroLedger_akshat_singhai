@@ -1,3 +1,5 @@
+'use client';
+
 import { useMemo } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
@@ -5,7 +7,10 @@ import idl from '../neuro_ledger.json';
 
 const PROGRAM_ID = 'AUB5zFoihMKGSJJudCBFPUKGVMgBW6QAcwMZbTPWkQxW';
 
+console.log('[useAnchor] Hook module loaded');
+
 export const useAnchor = () => {
+  console.log('[useAnchor] Hook invoked');
   const { connection } = useConnection();
   const wallet = useWallet();
 

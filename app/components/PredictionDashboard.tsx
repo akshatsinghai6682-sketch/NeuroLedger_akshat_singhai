@@ -1,9 +1,12 @@
+'use client';
+
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import PredictionForm from './PredictionForm';
 import TransactionStatus from './TransactionStatus';
 
 export default function PredictionDashboard() {
+  console.log('[PredictionDashboard] Component rendering');
   const { connected } = useWallet();
   const [transactionStatus, setTransactionStatus] = useState<{
     status: 'loading' | 'success' | 'error';

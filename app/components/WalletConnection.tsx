@@ -1,3 +1,5 @@
+'use client';
+
 import dynamic from 'next/dynamic';
 import { useWallet } from '@solana/wallet-adapter-react';
 

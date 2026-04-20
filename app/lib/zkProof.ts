@@ -1,3 +1,5 @@
+'use client';
+
 // ZK Proof generation utilities
 // This is a placeholder implementation. In production, you would use:
 // - snarkjs with Circom circuits

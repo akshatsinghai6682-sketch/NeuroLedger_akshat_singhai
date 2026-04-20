@@ -1,3 +1,5 @@
+'use client';
+
 interface TransactionStatusProps {
   status: {
     status: 'loading' | 'success' | 'error';

@@ -66,15 +66,20 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<PredictionResponse>
 ) {
+  console.log('[predict API] Request received:', new Date().toISOString());
+  
   if (req.method !== 'POST') {
+    console.log('[predict API] Invalid method:', req.method);
     return res.status(405).json({ error: 'Method not allowed', prediction: 0 });
   }
 
   try {
     const { cgpa, iq }: PredictionRequest = req.body;
+    console.log('[predict API] Processing prediction for cgpa:', cgpa, 'iq:', iq);
 
     // Validate inputs
     if (typeof cgpa !== 'number' || typeof iq !== 'number') {
+      console.log('[predict API] Invalid input types received');
       return res.status(400).json({
         error: 'Invalid input: cgpa and iq must be numbers',
         prediction: 0
@@ -82,6 +87,7 @@ export default async function handler(
     }
 
     if (cgpa < 0 || cgpa > 10 || iq < 0 || iq > 200) {
+      console.log('[predict API] Input validation failed - out of range');
       return res.status(400).json({
         error: 'Invalid input ranges: CGPA should be 0-10, IQ should be 0-200',
         prediction: 0
@@ -96,58 +102,100 @@ export default async function handler(
       scriptPath: path.dirname(__filename),
       args: []
     };
+    console.log('[predict API] Python options configured');
 
-    const pyshell = new PythonShell(pythonScript, options);
+    // Wrap Python execution in a dedicated async function with timeout
+    const executePythonWithTimeout = async (): Promise<PredictionResponse> => {
+      return new Promise((resolve) => {
+        console.log('[predict API] Spawning Python process');
+        let isResponseSent = false;
 
-    return new Promise((resolve) => {
-      let result = '';
-      let errorOutput = '';
+        // Create timeout at the start
+        const timeoutId = setTimeout(() => {
+          console.error('[predict API] ⚠️ TIMEOUT: Python process exceeded 25s - killing process');
+          if (!isResponseSent) {
+            isResponseSent = true;
+            try {
+              pyshell.kill('SIGKILL');
+            } catch (e) {
+              console.error('[predict API] Error killing pyshell:', e);
+            }
+            resolve({
+              error: 'ML model execution timed out (exceeded 25 seconds). Ensure Python dependencies are installed.',
+              prediction: 0
+            });
+          }
+        }, 25000);
 
-      pyshell.on('message', (message) => {
-        result = message;
+        const pyshell = new PythonShell(pythonScript, options);
+        let result = '';
+        let errorOutput = '';
+
+        pyshell.on('message', (message) => {
+          if (!isResponseSent) {
+            console.log('[predict API] ✓ Message:', message.substring(0, 80));
+            result = message;
+          }
+        });
+
+        pyshell.on('stderr', (stderr) => {
+          if (!isResponseSent) {
+            console.log('[predict API] stderr:', stderr.substring(0, 80));
+            errorOutput += stderr;
+          }
+        });
+
+        pyshell.on('error', (err) => {
+          console.error('[predict API] ✗ Process error:', err);
+          if (!isResponseSent) {
+            isResponseSent = true;
+            clearTimeout(timeoutId);
+            resolve({
+              error: 'Failed to run ML model: ' + (err.message || String(err)),
+              prediction: 0
+            });
+          }
+        });
+
+        pyshell.on('close', (code) => {
+          console.log('[predict API] Closed with code:', code);
+          if (!isResponseSent) {
+            isResponseSent = true;
+            clearTimeout(timeoutId);
+
+            if (code !== 0) {
+              console.error('[predict API] ✗ Exit code:', code);
+              resolve({
+                error: 'ML model failed: ' + errorOutput.substring(0, 150),
+                prediction: 0
+              });
+              return;
+            }
+
+            try {
+              const predictionResult = JSON.parse(result);
+              console.log('[predict API] ✓ Success:', predictionResult);
+              resolve(predictionResult);
+            } catch (parseError) {
+              console.error('[predict API] ✗ Parse failed:', result.substring(0, 50));
+              resolve({
+                error: 'Failed to parse output',
+                prediction: 0
+              });
+            }
+          }
+        });
+
+        pyshell.send(JSON.stringify({ cgpa, iq }));
+        pyshell.end();
       });
+    };
 
-      pyshell.on('stderr', (stderr) => {
-        errorOutput += stderr;
-      });
-
-      pyshell.on('error', (err) => {
-        console.error('Python script error:', err);
-        resolve(res.status(500).json({
-          error: 'Failed to run ML model',
-          prediction: 0
-        }));
-      });
-
-      pyshell.on('close', (code) => {
-        if (code !== 0) {
-          console.error('Python script exited with code:', code, errorOutput);
-          resolve(res.status(500).json({
-            error: 'ML model execution failed',
-            prediction: 0
-          }));
-          return;
-        }
-
-        try {
-          const predictionResult = JSON.parse(result);
-          resolve(res.status(200).json(predictionResult));
-        } catch (parseError) {
-          console.error('Failed to parse Python output:', result);
-          resolve(res.status(500).json({
-            error: 'Failed to parse model output',
-            prediction: 0
-          }));
-        }
-      });
-
-      // Send input data to Python script
-      pyshell.send(JSON.stringify({ cgpa, iq }));
-      pyshell.end();
-    });
+    const result = await executePythonWithTimeout();
+    return res.status(result.error ? 500 : 200).json(result);
 
   } catch (error) {
-    console.error('API error:', error);
+    console.error('[predict API] Error in validation:', error);
     return res.status(500).json({
       error: 'Internal server error',
       prediction: 0
