@@ -17,25 +17,26 @@ interface WalletProviderWrapperProps {
 export default function WalletProviderWrapper({ children }: WalletProviderWrapperProps) {
   console.log('[WalletProviderWrapper] Component rendering');
 
-  // Use localhost for local development, Devnet for production
+  const isDev = process.env.NODE_ENV !== 'production';
   const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const useLocalWallet = isDev || isLocalhost;
+
   const endpoint = useMemo(() => {
     console.log('[WalletProviderWrapper] Computing endpoint');
-    if (isLocalhost) {
+    if (useLocalWallet) {
       console.log('[WalletProviderWrapper] Using local validator endpoint');
       return 'http://127.0.0.1:8899';
     }
     console.log('[WalletProviderWrapper] Using Devnet endpoint');
     return clusterApiUrl(WalletAdapterNetwork.Devnet);
-  }, [isLocalhost]);
+  }, [useLocalWallet]);
 
   const wallets = useMemo(() => {
     console.log('[WalletProviderWrapper] Creating wallet adapters');
     try {
       const adapters = [];
       
-      // Use local wallet for development, Phantom for production
-      if (isLocalhost) {
+      if (useLocalWallet) {
         console.log('[WalletProviderWrapper] Using LocalWalletAdapter for development');
         adapters.push(new LocalWalletAdapter());
       } else {
@@ -43,13 +44,13 @@ export default function WalletProviderWrapper({ children }: WalletProviderWrappe
         adapters.push(new PhantomWalletAdapter());
       }
       
-      console.log('[WalletProviderWrapper] Wallet adapters created successfully');
+      console.log('[WalletProviderWrapper] Wallet adapters created successfully:', adapters.map((wallet) => wallet.name));
       return adapters;
     } catch (error) {
       console.error('[WalletProviderWrapper] Error creating wallet adapters:', error);
       return [];
     }
-  }, [isLocalhost]);
+  }, [useLocalWallet]);
 
   console.log('[WalletProviderWrapper] Rendering providers');
 

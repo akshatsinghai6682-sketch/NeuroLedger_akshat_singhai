@@ -58,7 +58,7 @@ export class LocalWalletAdapter extends BaseWalletAdapter {
   }
 
   get readyState(): WalletReadyState {
-    return WalletReadyState.Installed;
+    return WalletReadyState.Loadable;
   }
 
   async connect(): Promise<void> {
